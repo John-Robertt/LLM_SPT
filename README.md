@@ -20,7 +20,7 @@
 ```bash
 git clone https://github.com/John-Robertt/LLM_SPT.git
 cd LLM_SPT
-go build -o llmspt cmd/llmspt/main.go
+go build -o llmspt cmd/llmspt
 ```
 
 ### 步骤2：配置
@@ -344,11 +344,11 @@ cat input.srt | ./llmspt -
 
 ```bash
 # 本地构建
-go build -o llmspt cmd/llmspt/main.go
+go build -o llmspt cmd/llmspt
 
 # 多平台构建  
-GOOS=linux GOARCH=amd64 go build -o llmspt-linux cmd/llmspt/main.go
-GOOS=windows GOARCH=amd64 go build -o llmspt.exe cmd/llmspt/main.go
+GOOS=linux GOARCH=amd64 go build -o llmspt-linux cmd/llmspt
+GOOS=windows GOARCH=amd64 go build -o llmspt.exe cmd/llmspt
 ```
 
 ### 测试
