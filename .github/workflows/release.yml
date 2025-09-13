@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release"
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.22"
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-1.22-
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "VERSION_WITHOUT_V=${VERSION#v}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+
+          # Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.VERSION_WITHOUT_V }}'" -o dist/llmspt-linux-amd64 cmd/llmspt/main.go
+          tar -czf dist/llmspt-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz -C dist llmspt-linux-amd64
+
+          # Linux ARM64
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.VERSION_WITHOUT_V }}'" -o dist/llmspt-linux-arm64 cmd/llmspt/main.go
+          tar -czf dist/llmspt-${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz -C dist llmspt-linux-arm64
+
+          # Windows AMD64
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.VERSION_WITHOUT_V }}'" -o dist/llmspt-windows-amd64.exe cmd/llmspt/main.go
+          zip dist/llmspt-${{ steps.version.outputs.VERSION }}-windows-amd64.zip -j dist/llmspt-windows-amd64.exe
+
+          # Windows ARM64
+          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.VERSION_WITHOUT_V }}'" -o dist/llmspt-windows-arm64.exe cmd/llmspt/main.go
+          zip dist/llmspt-${{ steps.version.outputs.VERSION }}-windows-arm64.zip -j dist/llmspt-windows-arm64.exe
+
+          # macOS AMD64
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.VERSION_WITHOUT_V }}'" -o dist/llmspt-darwin-amd64 cmd/llmspt/main.go
+          tar -czf dist/llmspt-${{ steps.version.outputs.VERSION }}-darwin-amd64.tar.gz -C dist llmspt-darwin-amd64
+
+          # macOS ARM64 (M1/M2)
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.VERSION_WITHOUT_V }}'" -o dist/llmspt-darwin-arm64 cmd/llmspt/main.go
+          tar -czf dist/llmspt-${{ steps.version.outputs.VERSION }}-darwin-arm64.tar.gz -C dist llmspt-darwin-arm64
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.tar.gz *.zip > checksums.txt
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            # Extract version notes from CHANGELOG.md if it exists
+            awk '/^## \[${{ steps.version.outputs.VERSION_WITHOUT_V }}\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md > release_notes.md || echo "## ${{ steps.version.outputs.VERSION }}" > release_notes.md
+          else
+            echo "## ${{ steps.version.outputs.VERSION }}" > release_notes.md
+            echo "" >> release_notes.md
+            echo "### Changes" >> release_notes.md
+            git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> release_notes.md || echo "- Initial release" >> release_notes.md
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: LLM-SPT ${{ steps.version.outputs.VERSION }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update release info
+        run: |
+          echo "🎉 Release ${{ steps.version.outputs.VERSION }} created successfully!"
+          echo "📦 Assets uploaded:"
+          ls -la dist/
+          echo ""
+          echo "🔗 Release URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION }}"

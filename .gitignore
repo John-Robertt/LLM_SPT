@@ -72,3 +72,4 @@ yarn.lock
 coverage.*
 *.coverprofile
 profile.cov
+.claude
