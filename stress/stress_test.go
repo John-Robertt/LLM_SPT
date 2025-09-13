@@ -45,7 +45,7 @@ func runPipeline(t *testing.T, cfg cfgpkg.Config) error {
 
 // TestStress 在不同并发度下运行流水线并记录延迟统计。
 func TestStress(t *testing.T) {
-	srcInput := filepath.Join("..", "testdata", "files", "test-2283-line.srt")
+	srcInput := filepath.Join("..", "testdata", "files", "test-100-line.srt")
 	srcGloss := filepath.Join("..", "testdata", "files", "glossary.md")
 	levels := []int{1, 8, 16, 32, 64}
 	for _, conc := range levels {

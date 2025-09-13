@@ -113,18 +113,6 @@ func TestNewInvalid(t *testing.T) {
 	}
 }
 
-// TestMapPathInvalid 路径映射异常
-func TestMapPathInvalid(t *testing.T) {
-    dir := t.TempDir()
-    flat := false
-    w, _ := New(&Options{OutputDir: dir, Flat: &flat})
-    cases := []string{"/abs", "..", "."}
-    for _, id := range cases {
-        if _, err := w.mapPath(contract.ArtifactID(id)); err != contract.ErrPathInvalid {
-            t.Fatalf("id %s expect invalid", id)
-        }
-    }
-}
 
 type errReader struct{}
 

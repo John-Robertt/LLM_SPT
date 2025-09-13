@@ -85,3 +85,15 @@ func (w *RotatingFile) rotate() error {
 	// 打开新 current
 	return w.ensureOpen()
 }
+
+// Close 关闭当前打开的文件句柄
+func (w *RotatingFile) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.f != nil {
+		err := w.f.Close()
+		w.f = nil
+		return err
+	}
+	return nil
+}

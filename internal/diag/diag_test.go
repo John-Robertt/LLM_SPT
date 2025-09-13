@@ -7,6 +7,7 @@ import (
     "io/fs"
     "net"
     "os"
+    "runtime"
     "strings"
     "testing"
     "time"
@@ -14,10 +15,18 @@ import (
     "llmspt/pkg/contract"
 )
 
+// windowsFileCleanupDelayTest adds a small delay on Windows to allow file handles to be fully released
+func windowsFileCleanupDelayTest() {
+    if runtime.GOOS == "windows" {
+        time.Sleep(500 * time.Millisecond) // Increased delay for Windows
+    }
+}
+
 // UT-DIAG-01: 日志轮转写入
 func TestRotatingFile(t *testing.T) {
     dir := t.TempDir()
     w := NewRotatingFile(dir, 30)
+    defer w.Close()
     if err := w.WriteLine([]byte("first line that is very long")); err != nil {
         t.Fatalf("写入失败: %v", err)
     }
@@ -37,6 +46,7 @@ func TestRotatingFile(t *testing.T) {
 func TestRotatingFileRotateFiles(t *testing.T) {
     dir := t.TempDir()
     w := NewRotatingFile(dir, 10)
+    defer w.Close()
     for i := 0; i < 5; i++ {
         if err := w.WriteLine([]byte("xxxxxxxxxxxxxxxxxx")); err != nil {
             t.Fatalf("write: %v", err)
@@ -66,6 +76,7 @@ func TestRotatingFileRotateFiles(t *testing.T) {
 func TestRotatingFileEnsureAndRotate(t *testing.T) {
     dir := t.TempDir()
     w := NewRotatingFile(dir, 1024)
+    defer w.Close()
     if err := w.ensureOpen(); err != nil { //nolint:forbidigo // 访问非导出以提高覆盖率
         t.Fatalf("ensureOpen: %v", err)
     }
@@ -285,6 +296,7 @@ func TestNewTerminalWithFile(t *testing.T) {
 // 覆盖 Logger sink 写入成功路径
 func TestLoggerWithSink(t *testing.T) {
     l := NewLogger("corr", "info")
+    defer l.Close()
     // 写几条日志，触发 sink 路径
     timer := l.Start("comp", "msg")
     timer.Finish("ok", 1)
@@ -306,6 +318,7 @@ func TestLoggerLevelsAndFilter(t *testing.T) {
     }
     _ = NewLogger("c", "warn")
     l := NewLogger("c", "info")
+    defer l.Close()
     // Debug 在 info 级别应被过滤
     l.DebugStart("comp", "msg", "f", "b", nil)
     // 非空 durSince 分支
@@ -320,8 +333,19 @@ func TestLoggerLevelsAndFilter(t *testing.T) {
 
 // 触发默认 maxBytes 分支与 rotate 在 f==nil 分支
 func TestRotatingFileDefaultsAndRotateNoOpen(t *testing.T) {
-    dir := t.TempDir()
+    var dir string
+    if runtime.GOOS == "windows" {
+        // On Windows, use current directory to avoid temp cleanup issues
+        dir = "test_logs"
+        os.RemoveAll(dir) // Clean up before test
+        defer os.RemoveAll(dir) // Clean up after test
+    } else {
+        dir = t.TempDir()
+    }
+
     w := NewRotatingFile(dir, 0)
+    defer w.Close()
+
     if err := w.WriteLine([]byte("a")); err != nil {
         t.Fatalf("write: %v", err)
     }

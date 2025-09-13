@@ -169,7 +169,17 @@ func (t *Timer) Finish(msg string, count int64) {
 	t.l.log(Info, Event{Comp: t.comp, Stage: "finish", DurMS: time.Since(t.t0).Milliseconds(), Count: count, FileID: t.fileID, Batch: t.batch, Msg: msg})
 }
 
-// DebugStart 输出调试级别的“start”类事件（仅在 level=debug 时生效）。
+// DebugStart 输出调试级别的"start"类事件（仅在 level=debug 时生效）。
 func (l *Logger) DebugStart(comp, msg, fileID, batch string, kv map[string]string) {
 	l.log(Debug, Event{Comp: comp, Stage: "start", FileID: fileID, Batch: batch, Msg: msg, KV: kv})
+}
+
+// Close 关闭 logger 的 sink，释放文件句柄
+func (l *Logger) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.sink != nil {
+		return l.sink.Close()
+	}
+	return nil
 }

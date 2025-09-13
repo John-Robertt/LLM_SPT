@@ -37,6 +37,10 @@ func run() int {
 	logLevel := "info"
 	// 先占位默认，稍后在解析/合并配置后重建 logger 以使用最终 level
 	logger := diag.NewLogger(corrID, logLevel)
+	defer func() {
+		logger.Close() // 确保关闭 logger 以释放文件句柄
+		windowsFileCleanupDelay() // Windows 文件句柄释放延迟
+	}()
 	// flags
 	var (
 		flagConfig      string
@@ -160,6 +164,8 @@ func run() int {
 	if strings.TrimSpace(cfg.Logging.Level) != "" {
 		logLevel = strings.TrimSpace(cfg.Logging.Level)
 	}
+	logger.Close() // 关闭旧 logger
+	windowsFileCleanupDelay() // Windows 文件句柄释放延迟
 	logger = diag.NewLogger(corrID, logLevel)
 
 	// 预检：若使用文件系统 Writer，检查输出目录的可写性
