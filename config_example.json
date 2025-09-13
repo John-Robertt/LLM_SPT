@@ -1,0 +1,42 @@
+{
+  "inputs": [""],
+  "concurrency": 10,
+  "max_tokens": 4096,
+  "max_retries": 10,
+  "llm": "openai",
+  "provider": {
+    "gemini": {
+      "client": "gemini",
+      "options": {
+        "base_url": "",
+        "model": "",
+        "api_key_env": "",
+        "api_key": "",
+        "timeout_seconds": 60
+      },
+      "limits": {
+        "rpm": 0,
+        "tpm": 0
+      }
+    },
+    "openai": {
+      "client": "openai",
+      "options": {
+        "base_url": "",
+        "model": "",
+        "api_key_env": "",
+        "api_key": "",
+        "timeout_seconds": 60
+      },
+      "limits": {
+        "rpm": 0,
+        "tpm": 0
+      }
+    }
+  },
+  "options": {
+    "prompt_builder": {
+      "glossary_path": "testdata/files/glossary.md"
+    }
+  }
+}
